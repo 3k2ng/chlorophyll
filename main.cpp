@@ -1,49 +1,62 @@
 #include <raylib.h>
 
-enum class Navigation : unsigned char {
-    None,
-    Up,
-    Down,
-    Left,
-    Right,
-};
-
-Navigation get_navigation() {
-    int updown = 0; // -1 is up, 1 is down
-    if (IsKeyPressed(KEY_UP) || IsKeyPressedRepeat(KEY_UP)) {
-        --updown;
-    }
-    if (IsKeyPressed(KEY_DOWN) || IsKeyPressedRepeat(KEY_DOWN)) {
-        ++updown;
-    }
-    if (updown < 0) {
-        return Navigation::Up;
-    }
-    if (updown > 0) {
-        return Navigation::Down;
-    }
-    int leftright = 0; // -1 is left, 1 is right
-    if (IsKeyPressed(KEY_LEFT) || IsKeyPressedRepeat(KEY_LEFT)) {
-        --leftright;
-    }
-    if (IsKeyPressed(KEY_RIGHT) || IsKeyPressedRepeat(KEY_RIGHT)) {
-        ++leftright;
-    }
-    if (leftright < 0) {
-        return Navigation::Left;
-    }
-    if (leftright > 0) {
-        return Navigation::Right;
-    }
-    return Navigation::None;
-}
-
 int main(int argc, char *argv[]) {
-    InitWindow(640, 480, "chlorophyll");
+    InitWindow(1280, 720, "chlorophyll");
     while (!WindowShouldClose()) {
         const float delta = GetFrameTime();
         BeginDrawing();
         ClearBackground(RAYWHITE);
+
+        {
+            DrawRectangleRec(Rectangle{0, 0, 560, 240}, BLUE);
+            DrawRectangleRec(
+                Rectangle{static_cast<float>(GetScreenWidth() - 560), 0, 560,
+                          240},
+                BLUE);
+        }
+
+        {
+            DrawRectangleRec(
+                Rectangle{0, static_cast<float>(GetScreenHeight() - 80),
+                          static_cast<float>(GetScreenWidth()), 80},
+                BLUE);
+            for (int i = 0; i < 12; ++i) {
+                DrawRectangleRec(
+                    Rectangle{50 + static_cast<float>((80 + 20) * i),
+                              static_cast<float>(GetScreenHeight() - 80), 80,
+                              80},
+                    GREEN);
+            }
+        }
+
+        {
+            DrawRectangleRec(Rectangle{0, 240, 560, 400}, LIGHTGRAY);
+            DrawRectangleRec(Rectangle{200, 320, 80, 80}, BLUE);
+            DrawRectangleRec(Rectangle{200, 480, 80, 80}, BLUE);
+            DrawRectangleRec(Rectangle{400, 320, 80, 80}, BLUE);
+            DrawRectangleRec(Rectangle{400, 480, 80, 80}, BLUE);
+            DrawRectangleRec(
+                Rectangle{static_cast<float>(GetScreenWidth() - 560), 240, 560,
+                          400},
+                LIGHTGRAY);
+            DrawRectangleRec(
+                Rectangle{static_cast<float>(GetScreenWidth() - 80 - 200), 320,
+                          80, 80},
+                BLUE);
+            DrawRectangleRec(
+                Rectangle{static_cast<float>(GetScreenWidth() - 80 - 200), 480,
+                          80, 80},
+                BLUE);
+            DrawRectangleRec(
+                Rectangle{static_cast<float>(GetScreenWidth() - 80 - 400), 320,
+                          80, 80},
+                BLUE);
+            DrawRectangleRec(
+                Rectangle{static_cast<float>(GetScreenWidth() - 80 - 400), 480,
+                          80, 80},
+                BLUE);
+        }
+
         EndDrawing();
     }
     CloseWindow();

@@ -6,7 +6,7 @@ struct Sprite {
     Texture2D texture;
     Vector2 source_anchor = {}, source_size = {};
     int horizontal_frames = 1, vertical_frames = 1;
-    Vector2 rotation_origin = {};
+    Vector2 origin = {};
 
     Rectangle source(const int &frame) const {
         return Rectangle{
@@ -27,7 +27,9 @@ struct Sprite {
         };
     }
 
-    Vector2 offset(const Vector2 &scale) const {
-        return rotation_origin * scale;
+    Vector2 offset(const Vector2 &scale) const { return origin * scale; }
+
+    Vector2 billboard_offset(const Vector2 &scale) const {
+        return scale * (origin / source_size);
     }
 };

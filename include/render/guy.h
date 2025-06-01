@@ -6,6 +6,23 @@
 
 #include "./sprite.h"
 
+inline void draw_sprite(const Sprite &sprite, const int &frame,
+                        const Vector2 &position, const Vector2 &scale,
+                        const float &rotation, const Color &tint = WHITE) {
+    DrawTexturePro(sprite.texture, sprite.source(frame),
+                   sprite.dest(position, scale), sprite.offset(scale), rotation,
+                   tint);
+}
+
+inline void draw_billboard(const Camera &camera, const Sprite &sprite,
+                           const int &frame, const Vector3 &position,
+                           const Vector2 &scale, const float &rotation,
+                           const Color &tint = WHITE) {
+    DrawBillboardPro(camera, sprite.texture, sprite.source(frame), position,
+                     {0, 1, 0}, scale, sprite.billboard_offset(scale), rotation,
+                     tint);
+}
+
 class RenderGuy {
   public:
     RenderGuy() {}
@@ -15,19 +32,11 @@ class RenderGuy {
         }
     }
 
-    Texture2D add_texture(const char *file) {
+    Texture add_texture(const char *file) {
         textures_.push_back(LoadTexture(file));
         return textures_.back();
     }
 
-    void draw_sprite(const Sprite &sprite, const int &frame,
-                     const Vector2 &position, const Vector2 &scale,
-                     const float &rotation, const Color &tint = WHITE) const {
-        DrawTexturePro(sprite.texture, sprite.source(frame),
-                       sprite.dest(position, scale), sprite.offset(scale),
-                       rotation, tint);
-    }
-
   private:
-    std::vector<Texture2D> textures_;
+    std::vector<Texture> textures_;
 };

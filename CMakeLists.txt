@@ -19,14 +19,14 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE raylib)
 
-file(GLOB texture_files "./data/textures/*")
+file(GLOB_RECURSE texture_files "./data/textures/*.jpg" "./data/textures/*.png")
 foreach(file ${texture_files})
     file(RELATIVE_PATH file ${CMAKE_CURRENT_SOURCE_DIR} ${file})
     configure_file(${file} ${file} COPYONLY)
 endforeach()
 
-file(GLOB scpf_files "./data/fonts/Source_Code_Pro/static/*")
-foreach(file ${scpf_files})
+file(GLOB font_files "./data/fonts/*.ttf")
+foreach(file ${font_files})
     file(RELATIVE_PATH file ${CMAKE_CURRENT_SOURCE_DIR} ${file})
     configure_file(${file} ${file} COPYONLY)
 endforeach()

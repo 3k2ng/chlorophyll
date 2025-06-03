@@ -8,8 +8,9 @@
 
 inline void draw_sprite(const Sprite &sprite, const int &frame,
                         const Vector2 &position, const Vector2 &scale,
-                        const float &rotation, const Color &tint = WHITE) {
-    DrawTexturePro(sprite.texture, sprite.source(frame),
+                        const float &rotation, const bool flip_h = false,
+                        const bool flip_v = false, const Color &tint = WHITE) {
+    DrawTexturePro(sprite.texture, sprite.source(frame, flip_h, flip_v),
                    sprite.dest(position, scale), sprite.offset(scale), rotation,
                    tint);
 }
@@ -17,10 +18,11 @@ inline void draw_sprite(const Sprite &sprite, const int &frame,
 inline void draw_billboard(const Camera &camera, const Sprite &sprite,
                            const int &frame, const Vector3 &position,
                            const Vector2 &scale, const float &rotation,
+                           const bool flip_h = false, const bool flip_v = false,
                            const Color &tint = WHITE) {
-    DrawBillboardPro(camera, sprite.texture, sprite.source(frame), position,
-                     {0, 1, 0}, scale, sprite.billboard_offset(scale), rotation,
-                     tint);
+    DrawBillboardPro(camera, sprite.texture,
+                     sprite.source(frame, flip_h, flip_v), position, {0, 1, 0},
+                     scale, sprite.billboard_offset(scale), rotation, tint);
 }
 
 class RenderGuy {

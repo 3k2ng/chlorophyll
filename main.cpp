@@ -38,275 +38,275 @@ void draw_arc(const Vector2 &p0, const Vector2 &p1, const float radius,
 
 int main(int argc, char *argv[]) {
     InitWindow(1280, 720, "chlorophyll");
+    {
 
-    Camera3D camera;
-    camera.position = {10.0f, 2.0f, 0};
-    camera.target = {0, .5f, 0};
-    camera.up = {0.0f, 1.0f, 0.0f};
-    camera.fovy = 30.0f;
-    camera.projection = CAMERA_PERSPECTIVE;
+        Camera3D camera;
+        camera.position = {10.0f, 2.0f, 0};
+        camera.target = {0, .5f, 0};
+        camera.up = {0.0f, 1.0f, 0.0f};
+        camera.fovy = 30.0f;
+        camera.projection = CAMERA_PERSPECTIVE;
 
-    RenderGuy rg;
+        RenderGuy rg;
 
-    auto bridget = rg.add_texture("./data/textures/bridget.jpg");
-    Sprite bgs;
-    bgs.texture = bridget;
-    bgs.source_anchor = {};
-    bgs.source_size = {1024, 1024};
-    bgs.origin = {512, 0};
-    bgs.horizontal_frames = 2;
-    bgs.vertical_frames = 2;
+        auto char_tex =
+            rg.add_texture("./data/textures/test_texture/character.png");
 
-    const float ui_slot_size = 80;
-    const float ui_slot_spacing = 20;
-    const float field_slot_size = 40;
-    const float field_slot_spacing = 10;
+        Sprite chs;
+        chs.texture = char_tex;
+        chs.source_size = {800, 800};
+        chs.origin = {400, 0};
 
-    const std::vector<Vector3> player_character_position = {
-        {-2, 0, +1},
-        {-2, 0, +3},
-        {+2, 0, +1},
-        {+2, 0, +3},
-    };
-    const std::vector<Vector3> enemy_character_position = {
-        {-2, 0, -1},
-        {-2, 0, -3},
-        {+2, 0, -1},
-        {+2, 0, -3},
-    };
-    const std::vector<Color> player_character_slot_color = {
-        RED,
-        BLUE,
-        GREEN,
-        MAGENTA,
-    };
+        const float ui_slot_size = 80;
+        const float ui_slot_spacing = 20;
+        const float field_slot_size = 40;
+        const float field_slot_spacing = 10;
 
-    const std::vector<int> player_speed_roll = {1, 2, 2, 3};
-    const std::vector<int> player_slot_count = {2, 1, 3, 2};
-
-    const std::vector<int> enemy_speed_roll = {1, 2, 2, 3};
-    const std::vector<int> enemy_slot_count = {2, 2, 2, 2};
-
-    struct SlotDetails {
-        bool is_player;
-        int i, j;
-    };
-    std::optional<SlotDetails> current_selection;
-    std::vector<std::pair<SlotDetails, SlotDetails>> target_list;
-
-    auto draw_arrow = [](const Vector2 &from_position,
-                         const Vector2 &to_position) {
-        const Color border_color = ORANGE;
-        const Color line_color = YELLOW;
-        const float line_size = 4;
-        const float point_size = 12;
-        const float border_size = 2;
-        const float arc_radius = GetScreenWidth() * .5;
-        draw_arc(from_position, to_position, arc_radius,
-                 line_size + border_size * 2, border_color);
-        DrawRectangleRec(
-            Rectangle{
-                to_position.x - point_size / 2 - border_size,
-                to_position.y - point_size / 2 - border_size,
-                point_size + border_size * 2,
-                point_size + border_size * 2,
-            },
-            border_color);
-        draw_arc(from_position, to_position, arc_radius, line_size, line_color);
-        DrawRectangleRec(
-            Rectangle{
-                to_position.x - point_size / 2,
-                to_position.y - point_size / 2,
-                point_size,
-                point_size,
-            },
-            line_color);
-    };
-
-    while (!WindowShouldClose()) {
-        // pre input calculation
-        std::vector<std::vector<Rectangle>> ui_slot_rect(
-            player_slot_count.size());
-
-        std::vector<std::vector<Rectangle>> player_field_slot_rect(
-            player_slot_count.size());
-        std::vector<std::vector<Rectangle>> enemy_field_slot_rect(
-            enemy_slot_count.size());
-
-        {
-            int ui_slot_count = 0;
-            for (const int sc : player_slot_count) {
-                ui_slot_count += sc;
-            }
-            const float slot_bar_width =
-                ui_slot_count * (ui_slot_size + ui_slot_spacing) -
-                ui_slot_spacing;
-            int i = 0;
-            for (int j = 0; j < player_slot_count.size(); ++j) {
-                ui_slot_rect[j] = std::vector<Rectangle>(
-                    player_slot_count[j], {0, 0, ui_slot_size, ui_slot_size});
-                for (int k = 0; k < player_slot_count[j]; ++k) {
-                    ui_slot_rect[j][k].x =
-                        (GetScreenWidth() - slot_bar_width) / 2 +
-                        (ui_slot_size + ui_slot_spacing) * i;
-                    ui_slot_rect[j][k].y = GetScreenHeight() - ui_slot_size * 2;
-                    ++i;
-                }
-            }
-        }
-
-        for (int i = 0; i < player_slot_count.size(); ++i) {
-            const float player_slot_bar_width =
-                player_slot_count[i] * (field_slot_size + field_slot_spacing) -
-                field_slot_spacing;
-            player_field_slot_rect[i] = std::vector<Rectangle>(
-                player_slot_count[i], {0, 0, field_slot_size, field_slot_size});
-            const Vector2 center =
-                GetWorldToScreen(
-                    player_character_position[i] + Vector3{0, 1, 0}, camera) +
-                Vector2{0, -1} * (field_slot_size / 2 + field_slot_spacing);
-            for (int j = 0; j < player_slot_count[i]; ++j) {
-                player_field_slot_rect[i][j].x =
-                    center.x - player_slot_bar_width / 2 +
-                    (field_slot_size + field_slot_spacing) * j;
-                player_field_slot_rect[i][j].y = center.y - field_slot_size / 2;
-            }
-        }
-
-        for (int i = 0; i < enemy_slot_count.size(); ++i) {
-            const float enemy_slot_bar_width =
-                enemy_slot_count[i] * (field_slot_size + field_slot_spacing) -
-                field_slot_spacing;
-            enemy_field_slot_rect[i] = std::vector<Rectangle>(
-                enemy_slot_count[i], {0, 0, field_slot_size, field_slot_size});
-            const Vector2 center =
-                GetWorldToScreen(enemy_character_position[i] + Vector3{0, 1, 0},
-                                 camera) +
-                Vector2{0, -1} * (field_slot_size / 2 + field_slot_spacing);
-            for (int j = 0; j < enemy_slot_count[i]; ++j) {
-                enemy_field_slot_rect[i][j].x =
-                    center.x - enemy_slot_bar_width / 2 +
-                    (field_slot_size + field_slot_spacing) * j;
-                enemy_field_slot_rect[i][j].y = center.y - field_slot_size / 2;
-            }
-        }
-
-        auto field_slot_position = [&](const SlotDetails slot) -> Vector2 {
-            if (slot.is_player) {
-                const Rectangle pfsr = player_field_slot_rect[slot.i][slot.j];
-                return Vector2{
-                    pfsr.x + pfsr.width / 2,
-                    pfsr.y + pfsr.height / 2,
-                };
-            } else {
-                const Rectangle efsr = enemy_field_slot_rect[slot.i][slot.j];
-                return Vector2{
-                    efsr.x + efsr.width / 2,
-                    efsr.y + efsr.height / 2,
-                };
-            }
+        const std::vector<Vector3> player_character_position = {
+            {-2, 0, +1},
+            {-2, 0, +3},
+            {+2, 0, +1},
+            {+2, 0, +3},
+        };
+        const std::vector<Vector3> enemy_character_position = {
+            {-2, 0, -1},
+            {-2, 0, -3},
+            {+2, 0, -1},
+            {+2, 0, -3},
+        };
+        const std::vector<Color> player_character_slot_color = {
+            RED,
+            BLUE,
+            GREEN,
+            MAGENTA,
         };
 
-        // input phase
-        const float delta = GetFrameTime();
-        const Vector2 mpos = GetMousePosition();
+        const std::vector<int> player_speed_roll = {1, 2, 2, 3};
+        const std::vector<int> player_slot_count = {2, 1, 3, 2};
 
-        // render phase
-        BeginDrawing();
-        ClearBackground(RAYWHITE);
+        const std::vector<int> enemy_speed_roll = {1, 2, 2, 3};
+        const std::vector<int> enemy_slot_count = {2, 2, 2, 2};
 
-        if (current_selection.has_value()) {
-            std::optional<SlotDetails> target_slot = std::nullopt;
-            // player
+        struct SlotDetails {
+            bool is_player;
+            int i, j;
+        };
+        std::optional<SlotDetails> current_selection;
+        std::vector<std::pair<SlotDetails, SlotDetails>> target_list;
+
+        auto draw_arrow = [](const Vector2 &from_position,
+                             const Vector2 &to_position) {
+            const Color border_color = ORANGE;
+            const Color line_color = YELLOW;
+            const float line_size = 4;
+            const float point_size = 12;
+            const float border_size = 2;
+            const float arc_radius = GetScreenWidth() * .5;
+            draw_arc(from_position, to_position, arc_radius,
+                     line_size + border_size * 2, border_color);
+            DrawRectangleRec(
+                Rectangle{
+                    to_position.x - point_size / 2 - border_size,
+                    to_position.y - point_size / 2 - border_size,
+                    point_size + border_size * 2,
+                    point_size + border_size * 2,
+                },
+                border_color);
+            draw_arc(from_position, to_position, arc_radius, line_size,
+                     line_color);
+            DrawRectangleRec(
+                Rectangle{
+                    to_position.x - point_size / 2,
+                    to_position.y - point_size / 2,
+                    point_size,
+                    point_size,
+                },
+                line_color);
+        };
+
+        while (!WindowShouldClose()) {
+            // pre input calculation
+            std::vector<std::vector<Rectangle>> player_field_slot_rect(
+                player_slot_count.size());
+            std::vector<std::vector<Rectangle>> enemy_field_slot_rect(
+                enemy_slot_count.size());
+
             for (int i = 0; i < player_slot_count.size(); ++i) {
+                const float player_slot_bar_width =
+                    player_slot_count[i] *
+                        (field_slot_size + field_slot_spacing) -
+                    field_slot_spacing;
+                player_field_slot_rect[i] = std::vector<Rectangle>(
+                    player_slot_count[i],
+                    {0, 0, field_slot_size, field_slot_size});
+                const Vector2 center =
+                    GetWorldToScreen(player_character_position[i] +
+                                         Vector3{0, 1, 0},
+                                     camera) +
+                    Vector2{0, -1} * (field_slot_size / 2 + field_slot_spacing);
                 for (int j = 0; j < player_slot_count[i]; ++j) {
-                    if (left_click(player_field_slot_rect[i][j]) &&
-                        current_selection.value().i != i) {
-                        target_slot = SlotDetails{true, i, j};
-                    }
+                    player_field_slot_rect[i][j].x =
+                        center.x - player_slot_bar_width / 2 +
+                        (field_slot_size + field_slot_spacing) * j;
+                    player_field_slot_rect[i][j].y =
+                        center.y - field_slot_size / 2;
                 }
             }
-            // enemy
+
             for (int i = 0; i < enemy_slot_count.size(); ++i) {
+                const float enemy_slot_bar_width =
+                    enemy_slot_count[i] *
+                        (field_slot_size + field_slot_spacing) -
+                    field_slot_spacing;
+                enemy_field_slot_rect[i] = std::vector<Rectangle>(
+                    enemy_slot_count[i],
+                    {0, 0, field_slot_size, field_slot_size});
+                const Vector2 center =
+                    GetWorldToScreen(enemy_character_position[i] +
+                                         Vector3{0, 1, 0},
+                                     camera) +
+                    Vector2{0, -1} * (field_slot_size / 2 + field_slot_spacing);
                 for (int j = 0; j < enemy_slot_count[i]; ++j) {
-                    if (left_click(enemy_field_slot_rect[i][j])) {
-                        target_slot = SlotDetails{false, i, j};
+                    enemy_field_slot_rect[i][j].x =
+                        center.x - enemy_slot_bar_width / 2 +
+                        (field_slot_size + field_slot_spacing) * j;
+                    enemy_field_slot_rect[i][j].y =
+                        center.y - field_slot_size / 2;
+                }
+            }
+
+            auto field_slot_position = [&](const SlotDetails slot) -> Vector2 {
+                if (slot.is_player) {
+                    const Rectangle pfsr =
+                        player_field_slot_rect[slot.i][slot.j];
+                    return Vector2{
+                        pfsr.x + pfsr.width / 2,
+                        pfsr.y + pfsr.height / 2,
+                    };
+                } else {
+                    const Rectangle efsr =
+                        enemy_field_slot_rect[slot.i][slot.j];
+                    return Vector2{
+                        efsr.x + efsr.width / 2,
+                        efsr.y + efsr.height / 2,
+                    };
+                }
+            };
+
+            // input phase
+            const float delta = GetFrameTime();
+            const Vector2 mpos = GetMousePosition();
+
+            // render phase
+            BeginDrawing();
+            ClearBackground(RAYWHITE);
+
+            if (current_selection.has_value()) {
+                std::optional<SlotDetails> target_slot = std::nullopt;
+                // player
+                for (int i = 0; i < player_slot_count.size(); ++i) {
+                    for (int j = 0; j < player_slot_count[i]; ++j) {
+                        if (left_click(player_field_slot_rect[i][j]) &&
+                            current_selection.value().i != i) {
+                            target_slot = SlotDetails{true, i, j};
+                        }
+                    }
+                }
+                // enemy
+                for (int i = 0; i < enemy_slot_count.size(); ++i) {
+                    for (int j = 0; j < enemy_slot_count[i]; ++j) {
+                        if (left_click(enemy_field_slot_rect[i][j])) {
+                            target_slot = SlotDetails{false, i, j};
+                        }
+                    }
+                }
+                if (target_slot.has_value()) {
+                    target_list.push_back({
+                        current_selection.value(),
+                        target_slot.value(),
+                    });
+                    current_selection = std::nullopt;
+                }
+            } else {
+                for (int i = 0; i < player_slot_count.size(); ++i) {
+                    for (int j = 0; j < player_slot_count[i]; ++j) {
+                        if (left_click(player_field_slot_rect[i][j])) {
+                            current_selection = SlotDetails{true, i, j};
+                        }
                     }
                 }
             }
-            if (target_slot.has_value()) {
-                target_list.push_back({
-                    current_selection.value(),
-                    target_slot.value(),
-                });
-                current_selection = std::nullopt;
+
+            // field character
+            {
+                BeginMode3D(camera);
+
+                DrawGrid(32, 1.0f);
+
+                for (const auto &cp : player_character_position) {
+                    draw_billboard(camera, chs, 0, cp, {1, 1}, 0, true);
+                }
+
+                for (const auto &cp : enemy_character_position) {
+                    draw_billboard(camera, chs, 0, cp, {1, 1}, 0, false);
+                }
+
+                EndMode3D();
             }
-        } else {
-            for (int i = 0; i < player_slot_count.size(); ++i) {
-                for (int j = 0; j < player_slot_count[i]; ++j) {
-                    if (left_click(ui_slot_rect[i][j])) {
-                        current_selection = SlotDetails{true, i, j};
+
+            // field slot
+            {
+                // player
+                for (int i = 0; i < player_slot_count.size(); ++i) {
+                    for (const auto &pfsr : player_field_slot_rect[i]) {
+                        DrawRectangleRec(pfsr, player_character_slot_color[i]);
+                    }
+                }
+                // enemy
+                for (int i = 0; i < enemy_slot_count.size(); ++i) {
+                    for (const auto &efsr : enemy_field_slot_rect[i]) {
+                        DrawRectangleRec(efsr, GRAY);
                     }
                 }
             }
-        }
 
-        // field character
-        {
-            BeginMode3D(camera);
-
-            DrawGrid(32, 1.0f);
-
-            for (const auto &cp : player_character_position) {
-                draw_billboard(camera, bgs, 0, cp, {1, 1}, 0);
+            for (const auto &t : target_list) {
+                const Vector2 from_position = field_slot_position(t.first);
+                const Vector2 to_position = field_slot_position(t.second);
+                draw_arrow(from_position, to_position);
             }
 
-            for (const auto &cp : enemy_character_position) {
-                draw_billboard(camera, bgs, 0, cp, {1, 1}, 0);
+            if (current_selection.has_value()) {
+                const Vector2 from_position =
+                    field_slot_position(current_selection.value());
+                const Vector2 to_position = mpos;
+                draw_arrow(from_position, to_position);
             }
 
-            EndMode3D();
-        }
-
-        // field slot
-        {
-            // player
-            for (int i = 0; i < player_slot_count.size(); ++i) {
-                for (const auto &pfsr : player_field_slot_rect[i]) {
-                    DrawRectangleRec(pfsr, player_character_slot_color[i]);
-                }
+            {
+                DrawRectangleRec(
+                    Rectangle{
+                        0,
+                        0,
+                        static_cast<float>(GetScreenWidth()),
+                        static_cast<float>(GetScreenHeight()) / 4,
+                    },
+                    BLUE);
             }
-            // enemy
-            for (int i = 0; i < enemy_slot_count.size(); ++i) {
-                for (const auto &efsr : enemy_field_slot_rect[i]) {
-                    DrawRectangleRec(efsr, GRAY);
-                }
+
+            {
+                DrawRectangleRec(
+                    Rectangle{
+                        0,
+                        static_cast<float>(GetScreenHeight()) * 3 / 4,
+                        static_cast<float>(GetScreenWidth()),
+                        static_cast<float>(GetScreenHeight()) / 4,
+                    },
+                    BLUE);
             }
-        }
 
-        for (const auto &t : target_list) {
-            const Vector2 from_position = field_slot_position(t.first);
-            const Vector2 to_position = field_slot_position(t.second);
-            draw_arrow(from_position, to_position);
+            EndDrawing();
         }
-
-        // ui slot bar
-        {
-            for (int i = 0; i < player_slot_count.size(); ++i) {
-                for (const auto &usr : ui_slot_rect[i]) {
-                    DrawRectangleRec(usr, player_character_slot_color[i]);
-                }
-            }
-        }
-
-        if (current_selection.has_value()) {
-            const Vector2 from_position =
-                field_slot_position(current_selection.value());
-            const Vector2 to_position = mpos;
-            draw_arrow(from_position, to_position);
-        }
-
-        EndDrawing();
     }
     CloseWindow();
     return 0;

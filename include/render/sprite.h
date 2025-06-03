@@ -8,14 +8,24 @@ struct Sprite {
     int horizontal_frames = 1, vertical_frames = 1;
     Vector2 origin = {};
 
-    Rectangle source(const int &frame) const {
-        return Rectangle{
+    Rectangle source(const int &frame, const bool flip_h,
+                     const bool flip_v) const {
+        Rectangle source = {
             .x = source_anchor.x + source_size.x * (frame % horizontal_frames),
             .y = source_anchor.y +
                  source_size.y * static_cast<int>(frame / horizontal_frames),
             .width = source_size.x,
             .height = source_size.y,
         };
+        if (flip_h) {
+            source.x += source.width;
+            source.width *= -1;
+        }
+        if (flip_v) {
+            source.y += source.height;
+            source.height *= -1;
+        }
+        return source;
     }
 
     Rectangle dest(const Vector2 &position, const Vector2 &scale) const {

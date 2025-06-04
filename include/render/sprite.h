@@ -37,9 +37,11 @@ struct Sprite {
         };
     }
 
-    Vector2 offset(const Vector2 &scale) const { return origin * scale; }
+    Vector2 offset(const Vector2 &scale) const {
+        return origin * source_size * scale;
+    }
 
     Vector2 billboard_offset(const Vector2 &scale) const {
-        return scale * (origin / source_size);
+        return origin * scale;
     }
 };

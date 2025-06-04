@@ -1,30 +1,37 @@
 #pragma once
 
-#include "tool/range.h"
-#include <memory>
+#include <optional>
+#include <string>
+#include <variant>
+#include <vector>
 
-class Effect {
-  public:
-  private:
+#include "./effect.h"
+
+struct Hit {
+    int range_min, range_max;
+    std::optional<CombatEffect> hit_effect;
 };
 
-// small action with a range
-struct Action {
-    Range value_range;
-    std::unique_ptr<Effect> on_hit;
+struct Source {
+    std::vector<Hit> hit_list;
 };
 
-class Skill {
-  public:
-  private:
+struct Modifier {
+    enum class Type {
+        Block,
+        Evade,
+    };
+    int range_min, range_max;
+    Type type;
+    std::optional<ModifierEffect>
+        modifier_effect; // on block if block, and on evade if evade
 };
 
-class Source {
-  public:
-  private:
-};
-
-class Modifier {
-  public:
-  private:
+struct Skill {
+    std::string name;
+    std::string icon; // path to icon
+    int cost;
+    std::variant<Source, Modifier> content;
+    std::optional<CombatEffect> combat_start_effect; // on combat start
+    std::optional<CombatEffect> use_effect;          // on use
 };

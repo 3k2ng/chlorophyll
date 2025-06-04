@@ -1,313 +1,169 @@
-#include <optional>
 #include <raylib.h>
 #include <raymath.h>
 #include <rlgl.h>
+#include <vector>
 
-#include "./render/guy.h"
+#include "./gameplay/skill.h"
 
-bool left_click(const Rectangle &rect) {
-    return IsMouseButtonReleased(MOUSE_BUTTON_LEFT) &&
-           CheckCollisionPointRec(GetMousePosition(), rect);
+std::vector<Skill> skill_pool = {
+    Skill{
+        .name = "Test Source",
+        .icon = "./data/textures/test_texture/attack.png",
+        .cost = 1,
+        .content =
+            Source{
+                .hit_list =
+                    {
+                        Hit{
+                            .range_min = 1,
+                            .range_max = 2,
+                            .hit_effect = std::nullopt,
+                        },
+                        Hit{
+                            .range_min = 1,
+                            .range_max = 3,
+                            .hit_effect = CombatEffect{},
+                        },
+                    },
+            },
+        .combat_start_effect = CombatEffect{},
+        .use_effect = CombatEffect{},
+    },
+    Skill{
+        .name = "Test Block",
+        .icon = "./data/textures/test_texture/block.png",
+        .cost = 1,
+        .content =
+            Modifier{
+                .range_min = 2,
+                .range_max = 3,
+                .type = Modifier::Type::Block,
+                .modifier_effect = std::nullopt,
+            },
+        .combat_start_effect = std::nullopt,
+        .use_effect = std::nullopt,
+    },
+    Skill{
+        .name = "Test Evade",
+        .icon = "./data/textures/test_texture/evade.png",
+        .cost = 1,
+        .content =
+            Modifier{
+                .range_min = 1,
+                .range_max = 3,
+                .type = Modifier::Type::Evade,
+                .modifier_effect = ModifierEffect{},
+            },
+        .combat_start_effect = std::nullopt,
+        .use_effect = std::nullopt,
+    },
+};
+
+void draw_card_icon(const Skill &skill, const Texture &icon_texture,
+                    const Vector2 &position) {
+    DrawTexturePro(icon_texture, {0, 0, 400, 400},
+                   {position.x, position.y, 160, 160}, {}, 0, WHITE);
+    DrawRectangleLinesEx({position.x, position.y, 160, 160}, 4, BLUE);
+    DrawRectangle(position.x, position.y, 44, 44, BLUE);
+    const char *skill_cost = TextFormat("%d", skill.cost);
+    const float offset = float(40 - MeasureText(skill_cost, 40)) / 2;
+    DrawText(skill_cost, position.x + offset + 2, position.y + 2, 40, WHITE);
 }
 
-void draw_arc(const Vector2 &p0, const Vector2 &p1, const float radius,
-              const float line_size, const Color &color) {
-    const Vector2 p01 = p1 - p0;
-    const Vector2 p2 = Vector2Lerp(p0, p1, .5);
-    const Vector2 n = Vector2Normalize({p01.y, -p01.x}) * (p01.x > 0 ? -1 : 1);
-    const Vector2 c =
-        p2 + n * sqrtf(radius * radius - Vector2DistanceSqr(p0, p1) / 4);
-    const float angle_from = fmodf(
-        fmodf(2 * PI - Vector2Angle(p0 - c, {1, 0}), 2 * PI) + 6 * PI, 2 * PI);
-    const float angle_to = fmodf(
-        fmodf(2 * PI - Vector2Angle(p1 - c, {1, 0}), 2 * PI) + 6 * PI, 2 * PI);
-    const float angle_min = fminf(angle_from, angle_to);
-    const float angle_max = fmaxf(angle_from, angle_to);
-    const float angle_dist = angle_max - angle_min;
-    const float caf = angle_dist > PI ? angle_max : angle_min;
-    const float cat = angle_dist > PI ? (angle_min + 2 * PI) : angle_max;
-    const int segments = 64;
-    for (int i = 0; i < segments; ++i) {
-        const float theta_from = Lerp(caf, cat, float(i) / float(segments));
-        const float theta_to = Lerp(caf, cat, float(i + 1) / float(segments));
-        DrawLineEx(c + Vector2{cosf(theta_from), sinf(theta_from)} * radius,
-                   c + Vector2{cosf(theta_to), sinf(theta_to)} * radius,
-                   line_size, color);
+void draw_card_details(const Skill &skill, const Vector2 &position) {
+    const Vector2 details_position = position + Vector2{160, 0};
+    const char *skill_type =
+        std::holds_alternative<Source>(skill.content)
+            ? "Source"
+            : (std::get<Modifier>(skill.content).type == Modifier::Type::Block
+                   ? "Block"
+                   : "Evade");
+    const char *skill_title =
+        TextFormat("[%s] %s", skill_type, skill.name.c_str());
+    DrawRectangle(details_position.x, details_position.y,
+                  MeasureText(skill_title, 20) + 16, 22, BLUE);
+    Vector2 draw_position = details_position;
+    draw_position.x += 2;
+    draw_position.y += 2;
+    DrawText(skill_title, draw_position.x, draw_position.y, 20, WHITE);
+    draw_position.x += 2;
+    draw_position.y += 24;
+    if (skill.combat_start_effect.has_value()) {
+        const char *effect_text =
+            TextFormat("Cycle start: %s",
+                       skill.combat_start_effect.value().effect_text().c_str());
+        DrawText(effect_text, draw_position.x, draw_position.y, 20, RED);
+        draw_position.y += 24;
+    }
+    if (skill.use_effect.has_value()) {
+        const char *effect_text = TextFormat(
+            "Use: %s", skill.combat_start_effect.value().effect_text().c_str());
+        DrawText(effect_text, draw_position.x, draw_position.y, 20, RED);
+        draw_position.y += 24;
+    }
+    if (std::holds_alternative<Source>(skill.content)) {
+        const auto &source = std::get<Source>(skill.content);
+        for (const auto hit : source.hit_list) {
+            const char *hit_range =
+                TextFormat("%d - %d", hit.range_min, hit.range_max);
+            DrawRectangleLinesEx({draw_position.x, draw_position.y,
+                                  float(MeasureText(hit_range, 20) + 12), 26},
+                                 2, BLUE);
+            draw_position.x += 6;
+            draw_position.y += 4;
+            DrawText(hit_range, draw_position.x, draw_position.y, 20, RED);
+            if (hit.hit_effect.has_value()) {
+                const char *effect_text = TextFormat(
+                    "Hit: %s", hit.hit_effect.value().effect_text().c_str());
+                draw_position.x += MeasureText(hit_range, 20) + 12;
+                DrawText(effect_text, draw_position.x, draw_position.y, 20,
+                         RED);
+                draw_position.x -= MeasureText(hit_range, 20) + 12;
+            }
+            draw_position.x -= 6;
+            draw_position.y += 26;
+        }
+    } else {
+        const auto &modifier = std::get<Modifier>(skill.content);
+        const char *value_range =
+            TextFormat("%d - %d", modifier.range_min, modifier.range_max);
+        DrawRectangleLinesEx({draw_position.x, draw_position.y,
+                              float(MeasureText(value_range, 20) + 12), 26},
+                             2, BLUE);
+        draw_position.x += 6;
+        draw_position.y += 4;
+        DrawText(value_range, draw_position.x, draw_position.y, 20,
+                 modifier.type == Modifier::Type::Block ? GREEN : BLUE);
+        draw_position.x -= 6;
+        draw_position.y += 26;
+        if (modifier.modifier_effect.has_value()) {
+            const char *effect_text = TextFormat(
+                "%s: %s",
+                modifier.type == Modifier::Type::Block ? "Block" : "Evade",
+                modifier.modifier_effect.value().effect_text().c_str());
+            DrawText(effect_text, draw_position.x, draw_position.y, 20, RED);
+            draw_position.y += 26;
+        }
     }
 }
 
 int main(int argc, char *argv[]) {
     InitWindow(1280, 720, "chlorophyll");
-    {
 
-        Camera3D camera;
-        camera.position = {10.0f, 2.0f, 0};
-        camera.target = {0, .5f, 0};
-        camera.up = {0.0f, 1.0f, 0.0f};
-        camera.fovy = 30.0f;
-        camera.projection = CAMERA_PERSPECTIVE;
-
-        RenderGuy rg;
-
-        auto char_tex =
-            rg.add_texture("./data/textures/test_texture/character.png");
-
-        Sprite chs;
-        chs.texture = char_tex;
-        chs.source_size = {800, 800};
-        chs.origin = {400, 0};
-
-        const float ui_slot_size = 80;
-        const float ui_slot_spacing = 20;
-        const float field_slot_size = 40;
-        const float field_slot_spacing = 10;
-
-        const std::vector<Vector3> player_character_position = {
-            {-2, 0, +1},
-            {-2, 0, +3},
-            {+2, 0, +1},
-            {+2, 0, +3},
-        };
-        const std::vector<Vector3> enemy_character_position = {
-            {-2, 0, -1},
-            {-2, 0, -3},
-            {+2, 0, -1},
-            {+2, 0, -3},
-        };
-        const std::vector<Color> player_character_slot_color = {
-            RED,
-            BLUE,
-            GREEN,
-            MAGENTA,
-        };
-
-        const std::vector<int> player_speed_roll = {1, 2, 2, 3};
-        const std::vector<int> player_slot_count = {2, 1, 3, 2};
-
-        const std::vector<int> enemy_speed_roll = {1, 2, 2, 3};
-        const std::vector<int> enemy_slot_count = {2, 2, 2, 2};
-
-        struct SlotDetails {
-            bool is_player;
-            int i, j;
-        };
-        std::optional<SlotDetails> current_selection;
-        std::vector<std::pair<SlotDetails, SlotDetails>> target_list;
-
-        auto draw_arrow = [](const Vector2 &from_position,
-                             const Vector2 &to_position) {
-            const Color border_color = ORANGE;
-            const Color line_color = YELLOW;
-            const float line_size = 4;
-            const float point_size = 12;
-            const float border_size = 2;
-            const float arc_radius = GetScreenWidth() * .5;
-            draw_arc(from_position, to_position, arc_radius,
-                     line_size + border_size * 2, border_color);
-            DrawRectangleRec(
-                Rectangle{
-                    to_position.x - point_size / 2 - border_size,
-                    to_position.y - point_size / 2 - border_size,
-                    point_size + border_size * 2,
-                    point_size + border_size * 2,
-                },
-                border_color);
-            draw_arc(from_position, to_position, arc_radius, line_size,
-                     line_color);
-            DrawRectangleRec(
-                Rectangle{
-                    to_position.x - point_size / 2,
-                    to_position.y - point_size / 2,
-                    point_size,
-                    point_size,
-                },
-                line_color);
-        };
-
-        while (!WindowShouldClose()) {
-            // pre input calculation
-            std::vector<std::vector<Rectangle>> player_field_slot_rect(
-                player_slot_count.size());
-            std::vector<std::vector<Rectangle>> enemy_field_slot_rect(
-                enemy_slot_count.size());
-
-            for (int i = 0; i < player_slot_count.size(); ++i) {
-                const float player_slot_bar_width =
-                    player_slot_count[i] *
-                        (field_slot_size + field_slot_spacing) -
-                    field_slot_spacing;
-                player_field_slot_rect[i] = std::vector<Rectangle>(
-                    player_slot_count[i],
-                    {0, 0, field_slot_size, field_slot_size});
-                const Vector2 center =
-                    GetWorldToScreen(player_character_position[i] +
-                                         Vector3{0, 1, 0},
-                                     camera) +
-                    Vector2{0, -1} * (field_slot_size / 2 + field_slot_spacing);
-                for (int j = 0; j < player_slot_count[i]; ++j) {
-                    player_field_slot_rect[i][j].x =
-                        center.x - player_slot_bar_width / 2 +
-                        (field_slot_size + field_slot_spacing) * j;
-                    player_field_slot_rect[i][j].y =
-                        center.y - field_slot_size / 2;
-                }
-            }
-
-            for (int i = 0; i < enemy_slot_count.size(); ++i) {
-                const float enemy_slot_bar_width =
-                    enemy_slot_count[i] *
-                        (field_slot_size + field_slot_spacing) -
-                    field_slot_spacing;
-                enemy_field_slot_rect[i] = std::vector<Rectangle>(
-                    enemy_slot_count[i],
-                    {0, 0, field_slot_size, field_slot_size});
-                const Vector2 center =
-                    GetWorldToScreen(enemy_character_position[i] +
-                                         Vector3{0, 1, 0},
-                                     camera) +
-                    Vector2{0, -1} * (field_slot_size / 2 + field_slot_spacing);
-                for (int j = 0; j < enemy_slot_count[i]; ++j) {
-                    enemy_field_slot_rect[i][j].x =
-                        center.x - enemy_slot_bar_width / 2 +
-                        (field_slot_size + field_slot_spacing) * j;
-                    enemy_field_slot_rect[i][j].y =
-                        center.y - field_slot_size / 2;
-                }
-            }
-
-            auto field_slot_position = [&](const SlotDetails slot) -> Vector2 {
-                if (slot.is_player) {
-                    const Rectangle pfsr =
-                        player_field_slot_rect[slot.i][slot.j];
-                    return Vector2{
-                        pfsr.x + pfsr.width / 2,
-                        pfsr.y + pfsr.height / 2,
-                    };
-                } else {
-                    const Rectangle efsr =
-                        enemy_field_slot_rect[slot.i][slot.j];
-                    return Vector2{
-                        efsr.x + efsr.width / 2,
-                        efsr.y + efsr.height / 2,
-                    };
-                }
-            };
-
-            // input phase
-            const float delta = GetFrameTime();
-            const Vector2 mpos = GetMousePosition();
-
-            // render phase
-            BeginDrawing();
-            ClearBackground(RAYWHITE);
-
-            if (current_selection.has_value()) {
-                std::optional<SlotDetails> target_slot = std::nullopt;
-                // player
-                for (int i = 0; i < player_slot_count.size(); ++i) {
-                    for (int j = 0; j < player_slot_count[i]; ++j) {
-                        if (left_click(player_field_slot_rect[i][j]) &&
-                            current_selection.value().i != i) {
-                            target_slot = SlotDetails{true, i, j};
-                        }
-                    }
-                }
-                // enemy
-                for (int i = 0; i < enemy_slot_count.size(); ++i) {
-                    for (int j = 0; j < enemy_slot_count[i]; ++j) {
-                        if (left_click(enemy_field_slot_rect[i][j])) {
-                            target_slot = SlotDetails{false, i, j};
-                        }
-                    }
-                }
-                if (target_slot.has_value()) {
-                    target_list.push_back({
-                        current_selection.value(),
-                        target_slot.value(),
-                    });
-                    current_selection = std::nullopt;
-                }
-            } else {
-                for (int i = 0; i < player_slot_count.size(); ++i) {
-                    for (int j = 0; j < player_slot_count[i]; ++j) {
-                        if (left_click(player_field_slot_rect[i][j])) {
-                            current_selection = SlotDetails{true, i, j};
-                        }
-                    }
-                }
-            }
-
-            // field character
-            {
-                BeginMode3D(camera);
-
-                DrawGrid(32, 1.0f);
-
-                for (const auto &cp : player_character_position) {
-                    draw_billboard(camera, chs, 0, cp, {1, 1}, 0, true);
-                }
-
-                for (const auto &cp : enemy_character_position) {
-                    draw_billboard(camera, chs, 0, cp, {1, 1}, 0, false);
-                }
-
-                EndMode3D();
-            }
-
-            // field slot
-            {
-                // player
-                for (int i = 0; i < player_slot_count.size(); ++i) {
-                    for (const auto &pfsr : player_field_slot_rect[i]) {
-                        DrawRectangleRec(pfsr, player_character_slot_color[i]);
-                    }
-                }
-                // enemy
-                for (int i = 0; i < enemy_slot_count.size(); ++i) {
-                    for (const auto &efsr : enemy_field_slot_rect[i]) {
-                        DrawRectangleRec(efsr, GRAY);
-                    }
-                }
-            }
-
-            for (const auto &t : target_list) {
-                const Vector2 from_position = field_slot_position(t.first);
-                const Vector2 to_position = field_slot_position(t.second);
-                draw_arrow(from_position, to_position);
-            }
-
-            if (current_selection.has_value()) {
-                const Vector2 from_position =
-                    field_slot_position(current_selection.value());
-                const Vector2 to_position = mpos;
-                draw_arrow(from_position, to_position);
-            }
-
-            {
-                DrawRectangleRec(
-                    Rectangle{
-                        0,
-                        0,
-                        static_cast<float>(GetScreenWidth()),
-                        static_cast<float>(GetScreenHeight()) / 4,
-                    },
-                    BLUE);
-            }
-
-            {
-                DrawRectangleRec(
-                    Rectangle{
-                        0,
-                        static_cast<float>(GetScreenHeight()) * 3 / 4,
-                        static_cast<float>(GetScreenWidth()),
-                        static_cast<float>(GetScreenHeight()) / 4,
-                    },
-                    BLUE);
-            }
-
-            EndDrawing();
-        }
+    std::vector<Texture> skill_icon_texture(skill_pool.size());
+    for (int i = 0; i < skill_pool.size(); ++i) {
+        skill_icon_texture[i] = LoadTexture(skill_pool[i].icon.c_str());
     }
+
+    while (!WindowShouldClose()) {
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+        const int i = 2;
+        draw_card_icon(skill_pool[i], skill_icon_texture[i], {});
+        draw_card_details(skill_pool[i], {});
+        EndDrawing();
+    }
+
     CloseWindow();
     return 0;
 }

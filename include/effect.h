@@ -63,7 +63,6 @@ using Effect = std::variant<effect::Deal, effect::Give, effect::Summon,
 
 enum class TriggerType {
     BattleStart,
-    BattleEnd,
     SelfTurnStart,
     SelfTurnEnd,
     AllyTurnStart,
@@ -79,7 +78,6 @@ enum class TriggerType {
     AllySummon,
     EnemySummon,
     ShopStart,
-    ShopEnd,
     LevelUp,
     Buy,
     Sell,

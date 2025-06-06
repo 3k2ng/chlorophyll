@@ -8,7 +8,6 @@
 
 namespace event {
 struct BattleStart {};
-struct BattleEnd {};
 struct TurnStart {
     // location of the source whose turn it is
     int target;
@@ -44,7 +43,6 @@ struct Give {
     int attack, health;
 };
 struct ShopStart {};
-struct ShopEnd {};
 struct LevelUp {
     // location of the unit leveling up
     int target;
@@ -59,10 +57,9 @@ struct Sell {
 };
 }; // namespace event
 using Event =
-    std::variant<event::BattleStart, event::BattleEnd, event::TurnStart,
-                 event::TurnEnd, event::Hurt, event::Faint, event::Summon,
-                 event::Give, event::ShopStart, event::ShopEnd, event::LevelUp,
-                 event::Buy, event::Sell>;
+    std::variant<event::BattleStart, event::TurnStart, event::TurnEnd,
+                 event::Hurt, event::Faint, event::Summon, event::Give,
+                 event::ShopStart, event::LevelUp, event::Buy, event::Sell>;
 
 struct Battle {
     std::vector<Unit> player_team, enemy_team;
@@ -135,14 +132,18 @@ inline std::vector<int> find_target(const Battle &battle,
     case TargetingType::AllUnit: {
         std::vector<int> target_list;
         for (int i = all_min; i <= all_max; ++i) {
-            target_list.push_back(i);
+            if (i != source) {
+                target_list.push_back(i);
+            }
         }
         return target_list;
     }
     case TargetingType::AllAlly: {
         std::vector<int> target_list;
         for (int i = ally_min; i <= ally_max; ++i) {
-            target_list.push_back(i);
+            if (i != source) {
+                target_list.push_back(i);
+            }
         }
         return target_list;
     }
@@ -164,8 +165,8 @@ inline std::vector<int> find_target(const Battle &battle,
     }
     case TargetingType::AdjacentUnit: {
         std::vector<int> target_list;
-        for (const int i : {source - 1, source, source + 1}) {
-            if (all_min <= i && i <= all_max) {
+        for (const int i : {source + 1, source, source - 1}) {
+            if (all_min <= i && i <= all_max && i != source) {
                 target_list.push_back(i);
             }
         }
@@ -284,22 +285,6 @@ inline Battle remove_unit(const Battle &battle, const int location) {
     return {updated_player_team, updated_enemy_team};
 }
 
-inline std::vector<event::Hurt> turn_action(const Battle &battle) {
-    auto [player_source, enemy_source] = get_source_location(battle);
-    if (player_source.has_value() && enemy_source.has_value()) {
-        std::vector<event::Hurt> hurt_event;
-        const int player_target = player_source.value() - 1;
-        const int enemy_target = enemy_source.value() + 1;
-        return {
-            event::Hurt{player_source.value(), player_target,
-                        unit_attack(get_unit(battle, player_source.value()))},
-            event::Hurt{enemy_source.value(), enemy_target,
-                        unit_attack(get_unit(battle, enemy_source.value()))},
-        };
-    }
-    return {};
-}
-
 using TriggerRecord = std::tuple<Effect, int, int>;
 
 inline std::vector<TriggerRecord> find_trigger(const Battle &battle,
@@ -322,11 +307,6 @@ inline std::vector<TriggerRecord> find_trigger(const Battle &battle,
         switch (skill.first) {
         case TriggerType::BattleStart:
             if (std::holds_alternative<event::BattleStart>(event)) {
-                trigger_record.emplace_back(skill.second, i, i);
-            }
-            break;
-        case TriggerType::BattleEnd:
-            if (std::holds_alternative<event::BattleEnd>(event)) {
                 trigger_record.emplace_back(skill.second, i, i);
             }
             break;
@@ -437,7 +417,6 @@ inline std::vector<TriggerRecord> find_trigger(const Battle &battle,
 
             // not battle event
         case TriggerType::ShopStart:
-        case TriggerType::ShopEnd:
         case TriggerType::LevelUp:
         case TriggerType::Buy:
         case TriggerType::Sell:
@@ -449,8 +428,6 @@ inline std::vector<TriggerRecord> find_trigger(const Battle &battle,
 
 inline Battle apply_event(const Battle &battle, const Event &event) {
     if (std::holds_alternative<event::BattleStart>(event)) {
-        // nothing happens
-    } else if (std::holds_alternative<event::BattleEnd>(event)) {
         // nothing happens
     } else if (std::holds_alternative<event::TurnStart>(event)) {
         // nothing happens
@@ -483,7 +460,6 @@ inline Battle apply_event(const Battle &battle, const Event &event) {
     }
     // not battle event
     else if (std::holds_alternative<event::ShopStart>(event)) {
-    } else if (std::holds_alternative<event::ShopEnd>(event)) {
     } else if (std::holds_alternative<event::LevelUp>(event)) {
     } else if (std::holds_alternative<event::Buy>(event)) {
     } else if (std::holds_alternative<event::Sell>(event)) {
